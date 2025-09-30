@@ -1,0 +1,4 @@
+# ignore binary
+mcp-archive
+# ignore the vendored stuff
+vendor/*
