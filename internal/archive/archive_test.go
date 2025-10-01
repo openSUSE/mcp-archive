@@ -332,3 +332,143 @@ func TestZipExtract_SizeLimit(t *testing.T) {
 		t.Fatalf("expected size limit error, got: %v", err)
 	}
 }
+
+func TestCpioList_Depth(t *testing.T) {
+	files, err := cpioList("../../testdata/test.cpio", 1)
+	if err != nil {
+		t.Fatalf("cpioList failed: %v", err)
+	}
+
+	expected := []string{
+		"foo 0",
+	}
+
+	if len(files) != len(expected) {
+		t.Fatalf("expected %d files, got %d", len(expected), len(files))
+	}
+
+	for _, exp := range expected {
+		found := false
+		for _, file := range files {
+			if strings.Contains(file, exp) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("expected file '%s' not found in archive", exp)
+		}
+	}
+}
+
+func TestTarGzList_Depth(t *testing.T) {
+	files, err := tarGzList("../../testdata/test.tar.gz", 1)
+	if err != nil {
+		t.Fatalf("tarGzList failed: %v", err)
+	}
+
+	expected := []string{
+		"foo/ 0",
+	}
+
+	if len(files) != len(expected) {
+		t.Fatalf("expected %d files, got %d", len(expected), len(files))
+	}
+
+	for _, exp := range expected {
+		found := false
+		for _, file := range files {
+			if strings.Contains(file, exp) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("expected file '%s' not found in archive", exp)
+		}
+	}
+}
+
+func TestTarBz2List_Depth(t *testing.T) {
+	files, err := tarBz2List("../../testdata/test.tar.bz2", 1)
+	if err != nil {
+		t.Fatalf("tarBz2List failed: %v", err)
+	}
+
+	expected := []string{
+		"foo/ 0",
+	}
+
+	if len(files) != len(expected) {
+		t.Fatalf("expected %d files, got %d", len(expected), len(files))
+	}
+
+	for _, exp := range expected {
+		found := false
+		for _, file := range files {
+			if strings.Contains(file, exp) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("expected file '%s' not found in archive", exp)
+		}
+	}
+}
+
+func TestTarXzList_Depth(t *testing.T) {
+	files, err := tarXzList("../../testdata/test.tar.xz", 1)
+	if err != nil {
+		t.Fatalf("tarXzList failed: %v", err)
+	}
+
+	expected := []string{
+		"foo/ 0",
+	}
+
+	if len(files) != len(expected) {
+		t.Fatalf("expected %d files, got %d", len(expected), len(files))
+	}
+
+	for _, exp := range expected {
+		found := false
+		for _, file := range files {
+			if strings.Contains(file, exp) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("expected file '%s' not found in archive", exp)
+		}
+	}
+}
+
+func TestZipList_Depth(t *testing.T) {
+	files, err := zipList("../../testdata/test.zip", 1)
+	if err != nil {
+		t.Fatalf("zipList failed: %v", err)
+	}
+
+	expected := []string{
+		"foo/ 0",
+	}
+
+	if len(files) != len(expected) {
+		t.Fatalf("expected %d files, got %d", len(expected), len(files))
+	}
+
+	for _, exp := range expected {
+		found := false
+		for _, file := range files {
+			if strings.Contains(file, exp) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("expected file '%s' not found in archive", exp)
+		}
+	}
+}
