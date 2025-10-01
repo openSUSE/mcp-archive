@@ -136,3 +136,34 @@ func TestTarXzList(t *testing.T) {
 		}
 	}
 }
+
+func TestZipList(t *testing.T) {
+	files, err := zipList("../../testdata/test.zip")
+	if err != nil {
+		t.Fatalf("zipList failed: %v", err)
+	}
+
+	expected := []string{
+		"foo/ 0 drwxr-xr-x",
+		"foo/baar.txt 5 -rw-r--r--",
+		"foo/bazz 5 -rw-r--r--",
+	}
+
+	// The order of files in the archive is not guaranteed, so we need to compare them in a way that ignores order.
+	if len(files) != len(expected) {
+		t.Fatalf("expected %d files, got %d", len(expected), len(files))
+	}
+
+	for _, exp := range expected {
+		found := false
+		for _, file := range files {
+			if reflect.DeepEqual(file, exp) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("expected file '%s' not found in archive", exp)
+		}
+	}
+}

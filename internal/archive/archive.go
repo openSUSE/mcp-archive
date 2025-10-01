@@ -2,6 +2,7 @@ package archive
 
 import (
 	"archive/tar"
+	"archive/zip"
 	"compress/bzip2"
 	"compress/gzip"
 	"context"
@@ -120,6 +121,20 @@ func tarXzList(path string) ([]string, error) {
 	return files, nil
 }
 
+func zipList(path string) ([]string, error) {
+	r, err := zip.OpenReader(path)
+	if err != nil {
+		return nil, err
+	}
+	defer r.Close()
+
+	var files []string
+	for _, f := range r.File {
+		files = append(files, fmt.Sprintf("%s %d %s", f.Name, f.UncompressedSize64, f.Mode().String()))
+	}
+	return files, nil
+}
+
 // ListArchiveFiles lists the files in an archive.
 func ListArchiveFiles(ctx context.Context, req *mcp.CallToolRequest, args ListArchiveFilesArgs) (*mcp.CallToolResult, any, error) {
 	var files []string
@@ -134,6 +149,8 @@ func ListArchiveFiles(ctx context.Context, req *mcp.CallToolRequest, args ListAr
 		files, err = tarBz2List(args.Path)
 	case strings.HasSuffix(args.Path, ".tar.xz"):
 		files, err = tarXzList(args.Path)
+	case strings.HasSuffix(args.Path, ".zip"):
+		files, err = zipList(args.Path)
 	default:
 		return nil, nil, fmt.Errorf("unsupported archive format for %s", args.Path)
 	}
