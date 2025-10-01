@@ -1,6 +1,6 @@
 ..PHONY: all clean
 
-all: test.cpio test.tar.gz
+all: test.cpio test.tar.gz test.tar.bz2 test.tar.xz
 
 test.cpio:
 	mkdir -p foo
@@ -16,5 +16,19 @@ test.tar.gz:
 	tar -czf test.tar.gz foo
 	rm -rf foo
 
+test.tar.bz2:
+	mkdir -p foo
+	echo "baar" > foo/baar.txt
+	echo "bazz" > foo/bazz
+	tar -cjf test.tar.bz2 foo
+	rm -rf foo
+
+test.tar.xz:
+	mkdir -p foo
+	echo "baar" > foo/baar.txt
+	echo "bazz" > foo/bazz
+	tar -cJf test.tar.xz foo
+	rm -rf foo
+
 clean:
-	rm -rf foo test.cpio test.tar.gz
+	rm -rf foo test.cpio test.tar.gz test.tar.bz2 test.tar.xz

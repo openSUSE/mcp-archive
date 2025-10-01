@@ -2,6 +2,7 @@ package archive
 
 import (
 	"archive/tar"
+	"compress/bzip2"
 	"compress/gzip"
 	"context"
 	"fmt"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/cavaliergopher/cpio"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/ulikunitz/xz"
 )
 
 // ListArchiveFilesArgs are the arguments for the list_archive_files tool.
@@ -55,18 +57,69 @@ func tarGzList(path string) ([]string, error) {
 
 	tr := tar.NewReader(gzr)
 	var files []string
-	    for {
-			header, err := tr.Next()
-			if err == io.EOF {
-				break
-			}
-			if err != nil {
-				return nil, err
-			}
-			files = append(files, fmt.Sprintf("%s %d %s", header.Name, header.Size, os.FileMode(header.Mode).String()))
+	for {
+		header, err := tr.Next()
+		if err == io.EOF {
+			break
 		}
-		return files, nil
+		if err != nil {
+			return nil, err
+		}
+		files = append(files, fmt.Sprintf("%s %d %s", header.Name, header.Size, os.FileMode(header.Mode).String()))
 	}
+	return files, nil
+}
+
+func tarBz2List(path string) ([]string, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open archive: %w", err)
+	}
+	defer file.Close()
+
+	bz2r := bzip2.NewReader(file)
+	tr := tar.NewReader(bz2r)
+	var files []string
+	for {
+		header, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		files = append(files, fmt.Sprintf("%s %d %s", header.Name, header.Size, os.FileMode(header.Mode).String()))
+	}
+	return files, nil
+}
+
+func tarXzList(path string) ([]string, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open archive: %w", err)
+	}
+	defer file.Close()
+
+	xzr, err := xz.NewReader(file)
+	if err != nil {
+		return nil, err
+	}
+
+	tr := tar.NewReader(xzr)
+	var files []string
+	for {
+		header, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		files = append(files, fmt.Sprintf("%s %d %s", header.Name, header.Size, os.FileMode(header.Mode).String()))
+	}
+	return files, nil
+}
+
 // ListArchiveFiles lists the files in an archive.
 func ListArchiveFiles(ctx context.Context, req *mcp.CallToolRequest, args ListArchiveFilesArgs) (*mcp.CallToolResult, any, error) {
 	var files []string
@@ -77,6 +130,10 @@ func ListArchiveFiles(ctx context.Context, req *mcp.CallToolRequest, args ListAr
 		files, err = cpioList(args.Path)
 	case strings.HasSuffix(args.Path, ".tar.gz"):
 		files, err = tarGzList(args.Path)
+	case strings.HasSuffix(args.Path, ".tar.bz2"):
+		files, err = tarBz2List(args.Path)
+	case strings.HasSuffix(args.Path, ".tar.xz"):
+		files, err = tarXzList(args.Path)
 	default:
 		return nil, nil, fmt.Errorf("unsupported archive format for %s", args.Path)
 	}
