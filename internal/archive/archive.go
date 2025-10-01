@@ -3,7 +3,9 @@ package archive
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
+	"strings"
 
 	"github.com/cavaliergopher/cpio"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -11,14 +13,13 @@ import (
 
 // ListArchiveFilesArgs are the arguments for the list_archive_files tool.
 type ListArchiveFilesArgs struct {
-	Path string `json:"path" jsonschema:"the path to the cpio archive"`
+	Path string `json:"path" jsonschema:"the path to the archive"`
 }
 
-// ListArchiveFiles lists the files in a cpio archive.
-func ListArchiveFiles(ctx context.Context, req *mcp.CallToolRequest, args ListArchiveFilesArgs) (*mcp.CallToolResult, any, error) {
-	file, err := os.Open(args.Path)
+func cpioList(path string) ([]string, error) {
+	file, err := os.Open(path)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to open archive: %w", err)
+		return nil, fmt.Errorf("failed to open archive: %w", err)
 	}
 	defer file.Close()
 
@@ -26,10 +27,31 @@ func ListArchiveFiles(ctx context.Context, req *mcp.CallToolRequest, args ListAr
 	var files []string
 	for {
 		header, err := reader.Next()
-		if err != nil {
+		if err == io.EOF {
 			break
 		}
+		if err != nil {
+			return nil, err
+		}
 		files = append(files, fmt.Sprintf("%s %d %s", header.Name, header.Size, header.Mode))
+	}
+	return files, nil
+}
+
+// ListArchiveFiles lists the files in an archive.
+func ListArchiveFiles(ctx context.Context, req *mcp.CallToolRequest, args ListArchiveFilesArgs) (*mcp.CallToolResult, any, error) {
+	var files []string
+	var err error
+
+	switch {
+	case strings.HasSuffix(args.Path, ".cpio"):
+		files, err = cpioList(args.Path)
+	default:
+		return nil, nil, fmt.Errorf("unsupported archive format for %s", args.Path)
+	}
+
+	if err != nil {
+		return nil, nil, err
 	}
 
 	return &mcp.CallToolResult{
