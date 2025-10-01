@@ -5,11 +5,8 @@
 package archive
 
 import (
-	"context"
 	"strings"
 	"testing"
-
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 func TestCpioList(t *testing.T) {
@@ -171,18 +168,10 @@ func TestZipList(t *testing.T) {
 	}
 }
 
-func TestExtractArchiveFiles(t *testing.T) {
-	// Extract a file from the archive.
-	_, result, err := ExtractArchiveFiles(context.Background(), &mcp.CallToolRequest{}, ExtractArchiveFilesArgs{
-		Path:  "../../testdata/test.zip",
-		Files: []string{"foo/baar.txt"},
-	})
+func TestCpioExtract(t *testing.T) {
+	extractedFiles, err := cpioExtract("../../testdata/test.cpio", []string{"foo/baar.txt"})
 	if err != nil {
-		t.Fatalf("ExtractArchiveFiles failed: %v", err)
-	}
-	extractedFiles, ok := result.([]File)
-	if !ok {
-		t.Fatalf("unexpected result type: %T", result)
+		t.Fatalf("cpioExtract failed: %v", err)
 	}
 	if len(extractedFiles) != 1 {
 		t.Fatalf("expected 1 file, got %d", len(extractedFiles))
@@ -199,16 +188,143 @@ func TestExtractArchiveFiles(t *testing.T) {
 	}
 }
 
-func TestExtractArchiveFiles_SizeLimit(t *testing.T) {
-	// Set a small size limit for this test.
+func TestCpioExtract_SizeLimit(t *testing.T) {
 	originalSizeLimit := MaxExtractFileSize
 	MaxExtractFileSize = 20
 	defer func() { MaxExtractFileSize = originalSizeLimit }()
-	// Attempt to extract the file which is larger than the limit.
-	_, _, err := ExtractArchiveFiles(context.Background(), &mcp.CallToolRequest{}, ExtractArchiveFilesArgs{
-		Path:  "../../testdata/test.zip",
-		Files: []string{"foo/baar.txt"},
-	})
+	_, err := cpioExtract("../../testdata/test.cpio", []string{"foo/baar.txt"})
+	if err == nil {
+		t.Fatal("expected error for large file, but got nil")
+	}
+	if !strings.Contains(err.Error(), "is too large") {
+		t.Fatalf("expected size limit error, got: %v", err)
+	}
+}
+
+func TestTarGzExtract(t *testing.T) {
+	extractedFiles, err := tarGzExtract("../../testdata/test.tar.gz", []string{"foo/baar.txt"})
+	if err != nil {
+		t.Fatalf("tarGzExtract failed: %v", err)
+	}
+	if len(extractedFiles) != 1 {
+		t.Fatalf("expected 1 file, got %d", len(extractedFiles))
+	}
+	file := extractedFiles[0]
+	if file.Name != "foo/baar.txt" {
+		t.Errorf("unexpected file name: %s", file.Name)
+	}
+	if file.Content != "das Pferd isst Gurkensalat\n" {
+		t.Errorf("unexpected content in extracted file: %s", file.Content)
+	}
+	if file.Size != 27 {
+		t.Errorf("unexpected file size: %d", file.Size)
+	}
+}
+
+func TestTarGzExtract_SizeLimit(t *testing.T) {
+	originalSizeLimit := MaxExtractFileSize
+	MaxExtractFileSize = 20
+	defer func() { MaxExtractFileSize = originalSizeLimit }()
+	_, err := tarGzExtract("../../testdata/test.tar.gz", []string{"foo/baar.txt"})
+	if err == nil {
+		t.Fatal("expected error for large file, but got nil")
+	}
+	if !strings.Contains(err.Error(), "is too large") {
+		t.Fatalf("expected size limit error, got: %v", err)
+	}
+}
+
+func TestTarBz2Extract(t *testing.T) {
+	extractedFiles, err := tarBz2Extract("../../testdata/test.tar.bz2", []string{"foo/baar.txt"})
+	if err != nil {
+		t.Fatalf("tarBz2Extract failed: %v", err)
+	}
+	if len(extractedFiles) != 1 {
+		t.Fatalf("expected 1 file, got %d", len(extractedFiles))
+	}
+	file := extractedFiles[0]
+	if file.Name != "foo/baar.txt" {
+		t.Errorf("unexpected file name: %s", file.Name)
+	}
+	if file.Content != "das Pferd isst Gurkensalat\n" {
+		t.Errorf("unexpected content in extracted file: %s", file.Content)
+	}
+	if file.Size != 27 {
+		t.Errorf("unexpected file size: %d", file.Size)
+	}
+}
+
+func TestTarBz2Extract_SizeLimit(t *testing.T) {
+	originalSizeLimit := MaxExtractFileSize
+	MaxExtractFileSize = 20
+	defer func() { MaxExtractFileSize = originalSizeLimit }()
+	_, err := tarBz2Extract("../../testdata/test.tar.bz2", []string{"foo/baar.txt"})
+	if err == nil {
+		t.Fatal("expected error for large file, but got nil")
+	}
+	if !strings.Contains(err.Error(), "is too large") {
+		t.Fatalf("expected size limit error, got: %v", err)
+	}
+}
+
+func TestTarXzExtract(t *testing.T) {
+	extractedFiles, err := tarXzExtract("../../testdata/test.tar.xz", []string{"foo/baar.txt"})
+	if err != nil {
+		t.Fatalf("tarXzExtract failed: %v", err)
+	}
+	if len(extractedFiles) != 1 {
+		t.Fatalf("expected 1 file, got %d", len(extractedFiles))
+	}
+	file := extractedFiles[0]
+	if file.Name != "foo/baar.txt" {
+		t.Errorf("unexpected file name: %s", file.Name)
+	}
+	if file.Content != "das Pferd isst Gurkensalat\n" {
+		t.Errorf("unexpected content in extracted file: %s", file.Content)
+	}
+	if file.Size != 27 {
+		t.Errorf("unexpected file size: %d", file.Size)
+	}
+}
+
+func TestTarXzExtract_SizeLimit(t *testing.T) {
+	originalSizeLimit := MaxExtractFileSize
+	MaxExtractFileSize = 20
+	defer func() { MaxExtractFileSize = originalSizeLimit }()
+	_, err := tarXzExtract("../../testdata/test.tar.xz", []string{"foo/baar.txt"})
+	if err == nil {
+		t.Fatal("expected error for large file, but got nil")
+	}
+	if !strings.Contains(err.Error(), "is too large") {
+		t.Fatalf("expected size limit error, got: %v", err)
+	}
+}
+
+func TestZipExtract(t *testing.T) {
+	extractedFiles, err := zipExtract("../../testdata/test.zip", []string{"foo/baar.txt"})
+	if err != nil {
+		t.Fatalf("zipExtract failed: %v", err)
+	}
+	if len(extractedFiles) != 1 {
+		t.Fatalf("expected 1 file, got %d", len(extractedFiles))
+	}
+	file := extractedFiles[0]
+	if file.Name != "foo/baar.txt" {
+		t.Errorf("unexpected file name: %s", file.Name)
+	}
+	if file.Content != "das Pferd isst Gurkensalat\n" {
+		t.Errorf("unexpected content in extracted file: %s", file.Content)
+	}
+	if file.Size != 27 {
+		t.Errorf("unexpected file size: %d", file.Size)
+	}
+}
+
+func TestZipExtract_SizeLimit(t *testing.T) {
+	originalSizeLimit := MaxExtractFileSize
+	MaxExtractFileSize = 20
+	defer func() { MaxExtractFileSize = originalSizeLimit }()
+	_, err := zipExtract("../../testdata/test.zip", []string{"foo/baar.txt"})
 	if err == nil {
 		t.Fatal("expected error for large file, but got nil")
 	}
