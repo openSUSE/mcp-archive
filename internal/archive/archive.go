@@ -13,12 +13,31 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/cavaliergopher/cpio"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/ulikunitz/xz"
 )
+
+// Archive holds the configuration for the archive tools.
+type Archive struct {
+	maxSize int64
+	Workdir string
+}
+
+// New creates a new Archive instance.
+func New(workdir string) (*Archive, error) {
+	absWorkdir, err := filepath.Abs(workdir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get absolute path for workdir: %w", err)
+	}
+	return &Archive{
+		maxSize: 100 * 1024,
+		Workdir: absWorkdir,
+	}, nil
+}
 
 // ListArchiveFilesArgs are the arguments for the list_archive_files tool.
 type ListArchiveFilesArgs struct {
@@ -40,13 +59,28 @@ type File struct {
 	Content     string `json:"content"`
 }
 
-var (
-	// MaxExtractFileSize is the maximum size of a file that can be extracted.
-	MaxExtractFileSize int64 = 100 * 1024
-)
+func (a *Archive) securePath(path string) (string, error) {
+	absPath, err := filepath.Abs(filepath.Join(a.Workdir, path))
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve path: %w", err)
+	}
+	evalPath, err := filepath.EvalSymlinks(absPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to evaluate symlinks: %w", err)
+	}
 
-func cpioList(path string, depth int) ([]string, error) {
-	file, err := os.Open(path)
+	if !strings.HasPrefix(evalPath, a.Workdir) {
+		return "", fmt.Errorf("path %s is outside of the working directory", path)
+	}
+	return evalPath, nil
+}
+
+func (a *Archive) cpioList(path string, depth int) ([]string, error) {
+	securePath, err := a.securePath(path)
+	if err != nil {
+		return nil, err
+	}
+	file, err := os.Open(securePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open archive: %w", err)
 	}
@@ -70,8 +104,12 @@ func cpioList(path string, depth int) ([]string, error) {
 	return files, nil
 }
 
-func tarGzList(path string, depth int) ([]string, error) {
-	file, err := os.Open(path)
+func (a *Archive) tarGzList(path string, depth int) ([]string, error) {
+	securePath, err := a.securePath(path)
+	if err != nil {
+		return nil, err
+	}
+	file, err := os.Open(securePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open archive: %w", err)
 	}
@@ -101,8 +139,12 @@ func tarGzList(path string, depth int) ([]string, error) {
 	return files, nil
 }
 
-func tarBz2List(path string, depth int) ([]string, error) {
-	file, err := os.Open(path)
+func (a *Archive) tarBz2List(path string, depth int) ([]string, error) {
+	securePath, err := a.securePath(path)
+	if err != nil {
+		return nil, err
+	}
+	file, err := os.Open(securePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open archive: %w", err)
 	}
@@ -127,8 +169,12 @@ func tarBz2List(path string, depth int) ([]string, error) {
 	return files, nil
 }
 
-func tarXzList(path string, depth int) ([]string, error) {
-	file, err := os.Open(path)
+func (a *Archive) tarXzList(path string, depth int) ([]string, error) {
+	securePath, err := a.securePath(path)
+	if err != nil {
+		return nil, err
+	}
+	file, err := os.Open(securePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open archive: %w", err)
 	}
@@ -157,8 +203,12 @@ func tarXzList(path string, depth int) ([]string, error) {
 	return files, nil
 }
 
-func zipList(path string, depth int) ([]string, error) {
-	r, err := zip.OpenReader(path)
+func (a *Archive) zipList(path string, depth int) ([]string, error) {
+	securePath, err := a.securePath(path)
+	if err != nil {
+		return nil, err
+	}
+	r, err := zip.OpenReader(securePath)
 	if err != nil {
 		return nil, err
 	}
@@ -175,21 +225,21 @@ func zipList(path string, depth int) ([]string, error) {
 }
 
 // ListArchiveFiles lists the files in an archive.
-func ListArchiveFiles(ctx context.Context, req *mcp.CallToolRequest, args ListArchiveFilesArgs) (*mcp.CallToolResult, any, error) {
+func (a *Archive) ListArchiveFiles(ctx context.Context, req *mcp.CallToolRequest, args ListArchiveFilesArgs) (*mcp.CallToolResult, any, error) {
 	var files []string
 	var err error
 
 	switch {
 	case strings.HasSuffix(args.Path, ".cpio"):
-		files, err = cpioList(args.Path, args.Depth)
+		files, err = a.cpioList(args.Path, args.Depth)
 	case strings.HasSuffix(args.Path, ".tar.gz"):
-		files, err = tarGzList(args.Path, args.Depth)
+		files, err = a.tarGzList(args.Path, args.Depth)
 	case strings.HasSuffix(args.Path, ".tar.bz2"):
-		files, err = tarBz2List(args.Path, args.Depth)
+		files, err = a.tarBz2List(args.Path, args.Depth)
 	case strings.HasSuffix(args.Path, ".tar.xz"):
-		files, err = tarXzList(args.Path, args.Depth)
+		files, err = a.tarXzList(args.Path, args.Depth)
 	case strings.HasSuffix(args.Path, ".zip"):
-		files, err = zipList(args.Path, args.Depth)
+		files, err = a.zipList(args.Path, args.Depth)
 	default:
 		return nil, nil, fmt.Errorf("unsupported archive format for %s", args.Path)
 	}
@@ -205,8 +255,12 @@ func ListArchiveFiles(ctx context.Context, req *mcp.CallToolRequest, args ListAr
 	}, nil, nil
 }
 
-func cpioExtract(path string, filesToExtract []string) ([]File, error) {
-	file, err := os.Open(path)
+func (a *Archive) cpioExtract(path string, filesToExtract []string) ([]File, error) {
+	securePath, err := a.securePath(path)
+	if err != nil {
+		return nil, err
+	}
+	file, err := os.Open(securePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open archive: %w", err)
 	}
@@ -226,7 +280,7 @@ func cpioExtract(path string, filesToExtract []string) ([]File, error) {
 
 		for _, f := range filesToExtract {
 			if header.Name == f {
-				if header.Size > MaxExtractFileSize {
+				if header.Size > a.maxSize {
 					return nil, fmt.Errorf("file %s is too large to extract: %d bytes", header.Name, header.Size)
 				}
 
@@ -248,8 +302,12 @@ func cpioExtract(path string, filesToExtract []string) ([]File, error) {
 	return extractedFiles, nil
 }
 
-func tarGzExtract(path string, filesToExtract []string) ([]File, error) {
-	file, err := os.Open(path)
+func (a *Archive) tarGzExtract(path string, filesToExtract []string) ([]File, error) {
+	securePath, err := a.securePath(path)
+	if err != nil {
+		return nil, err
+	}
+	file, err := os.Open(securePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open archive: %w", err)
 	}
@@ -275,7 +333,7 @@ func tarGzExtract(path string, filesToExtract []string) ([]File, error) {
 
 		for _, f := range filesToExtract {
 			if header.Name == f {
-				if header.Size > MaxExtractFileSize {
+				if header.Size > a.maxSize {
 					return nil, fmt.Errorf("file %s is too large to extract: %d bytes", header.Name, header.Size)
 				}
 
@@ -297,8 +355,12 @@ func tarGzExtract(path string, filesToExtract []string) ([]File, error) {
 	return extractedFiles, nil
 }
 
-func tarBz2Extract(path string, filesToExtract []string) ([]File, error) {
-	file, err := os.Open(path)
+func (a *Archive) tarBz2Extract(path string, filesToExtract []string) ([]File, error) {
+	securePath, err := a.securePath(path)
+	if err != nil {
+		return nil, err
+	}
+	file, err := os.Open(securePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open archive: %w", err)
 	}
@@ -319,7 +381,7 @@ func tarBz2Extract(path string, filesToExtract []string) ([]File, error) {
 
 		for _, f := range filesToExtract {
 			if header.Name == f {
-				if header.Size > MaxExtractFileSize {
+				if header.Size > a.maxSize {
 					return nil, fmt.Errorf("file %s is too large to extract: %d bytes", header.Name, header.Size)
 				}
 
@@ -341,8 +403,12 @@ func tarBz2Extract(path string, filesToExtract []string) ([]File, error) {
 	return extractedFiles, nil
 }
 
-func tarXzExtract(path string, filesToExtract []string) ([]File, error) {
-	file, err := os.Open(path)
+func (a *Archive) tarXzExtract(path string, filesToExtract []string) ([]File, error) {
+	securePath, err := a.securePath(path)
+	if err != nil {
+		return nil, err
+	}
+	file, err := os.Open(securePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open archive: %w", err)
 	}
@@ -367,7 +433,7 @@ func tarXzExtract(path string, filesToExtract []string) ([]File, error) {
 
 		for _, f := range filesToExtract {
 			if header.Name == f {
-				if header.Size > MaxExtractFileSize {
+				if header.Size > a.maxSize {
 					return nil, fmt.Errorf("file %s is too large to extract: %d bytes", header.Name, header.Size)
 				}
 
@@ -389,8 +455,12 @@ func tarXzExtract(path string, filesToExtract []string) ([]File, error) {
 	return extractedFiles, nil
 }
 
-func zipExtract(path string, filesToExtract []string) ([]File, error) {
-	r, err := zip.OpenReader(path)
+func (a *Archive) zipExtract(path string, filesToExtract []string) ([]File, error) {
+	securePath, err := a.securePath(path)
+	if err != nil {
+		return nil, err
+	}
+	r, err := zip.OpenReader(securePath)
 	if err != nil {
 		return nil, err
 	}
@@ -400,7 +470,7 @@ func zipExtract(path string, filesToExtract []string) ([]File, error) {
 	for _, f := range r.File {
 		for _, fileToExtract := range filesToExtract {
 			if f.Name == fileToExtract {
-				if f.UncompressedSize64 > uint64(MaxExtractFileSize) {
+				if f.UncompressedSize64 > uint64(a.maxSize) {
 					return nil, fmt.Errorf("file %s is too large to extract: %d bytes", f.Name, f.UncompressedSize64)
 				}
 
@@ -430,21 +500,21 @@ func zipExtract(path string, filesToExtract []string) ([]File, error) {
 }
 
 // ExtractArchiveFiles extracts files from an archive and returns their content.
-func ExtractArchiveFiles(ctx context.Context, req *mcp.CallToolRequest, args ExtractArchiveFilesArgs) (*mcp.CallToolResult, any, error) {
+func (a *Archive) ExtractArchiveFiles(ctx context.Context, req *mcp.CallToolRequest, args ExtractArchiveFilesArgs) (*mcp.CallToolResult, any, error) {
 	var files []File
 	var err error
 
 	switch {
 	case strings.HasSuffix(args.Path, ".cpio"):
-		files, err = cpioExtract(args.Path, args.Files)
+		files, err = a.cpioExtract(args.Path, args.Files)
 	case strings.HasSuffix(args.Path, ".tar.gz"):
-		files, err = tarGzExtract(args.Path, args.Files)
+		files, err = a.tarGzExtract(args.Path, args.Files)
 	case strings.HasSuffix(args.Path, ".tar.bz2"):
-		files, err = tarBz2Extract(args.Path, args.Files)
+		files, err = a.tarBz2Extract(args.Path, args.Files)
 	case strings.HasSuffix(args.Path, ".tar.xz"):
-		files, err = tarXzExtract(args.Path, args.Files)
+		files, err = a.tarXzExtract(args.Path, args.Files)
 	case strings.HasSuffix(args.Path, ".zip"):
-		files, err = zipExtract(args.Path, args.Files)
+		files, err = a.zipExtract(args.Path, args.Files)
 	default:
 		return nil, nil, fmt.Errorf("unsupported archive format for %s", args.Path)
 	}

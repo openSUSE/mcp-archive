@@ -5,12 +5,23 @@
 package archive
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
 
+func newTestArchive(t *testing.T) *Archive {
+	a, err := New("../../testdata")
+	if err != nil {
+		t.Fatalf("failed to create archive: %v", err)
+	}
+	return a
+}
+
 func TestCpioList(t *testing.T) {
-	files, err := cpioList("../../testdata/test.cpio", 0)
+	a := newTestArchive(t)
+	files, err := a.cpioList("test.cpio", 0)
 	if err != nil {
 		t.Fatalf("cpioList failed: %v", err)
 	}
@@ -45,7 +56,8 @@ func TestCpioList(t *testing.T) {
 }
 
 func TestTarGzList(t *testing.T) {
-	files, err := tarGzList("../../testdata/test.tar.gz", 0)
+	a := newTestArchive(t)
+	files, err := a.tarGzList("test.tar.gz", 0)
 	if err != nil {
 		t.Fatalf("tarGzList failed: %v", err)
 	}
@@ -76,7 +88,8 @@ func TestTarGzList(t *testing.T) {
 }
 
 func TestTarBz2List(t *testing.T) {
-	files, err := tarBz2List("../../testdata/test.tar.bz2", 0)
+	a := newTestArchive(t)
+	files, err := a.tarBz2List("test.tar.bz2", 0)
 	if err != nil {
 		t.Fatalf("tarBz2List failed: %v", err)
 	}
@@ -107,7 +120,8 @@ func TestTarBz2List(t *testing.T) {
 }
 
 func TestTarXzList(t *testing.T) {
-	files, err := tarXzList("../../testdata/test.tar.xz", 0)
+	a := newTestArchive(t)
+	files, err := a.tarXzList("test.tar.xz", 0)
 	if err != nil {
 		t.Fatalf("tarXzList failed: %v", err)
 	}
@@ -138,7 +152,8 @@ func TestTarXzList(t *testing.T) {
 }
 
 func TestZipList(t *testing.T) {
-	files, err := zipList("../../testdata/test.zip", 0)
+	a := newTestArchive(t)
+	files, err := a.zipList("test.zip", 0)
 	if err != nil {
 		t.Fatalf("zipList failed: %v", err)
 	}
@@ -169,7 +184,8 @@ func TestZipList(t *testing.T) {
 }
 
 func TestCpioExtract(t *testing.T) {
-	extractedFiles, err := cpioExtract("../../testdata/test.cpio", []string{"foo/baar.txt"})
+	a := newTestArchive(t)
+	extractedFiles, err := a.cpioExtract("test.cpio", []string{"foo/baar.txt"})
 	if err != nil {
 		t.Fatalf("cpioExtract failed: %v", err)
 	}
@@ -189,10 +205,9 @@ func TestCpioExtract(t *testing.T) {
 }
 
 func TestCpioExtract_SizeLimit(t *testing.T) {
-	originalSizeLimit := MaxExtractFileSize
-	MaxExtractFileSize = 20
-	defer func() { MaxExtractFileSize = originalSizeLimit }()
-	_, err := cpioExtract("../../testdata/test.cpio", []string{"foo/baar.txt"})
+	a := newTestArchive(t)
+	a.maxSize = 20
+	_, err := a.cpioExtract("test.cpio", []string{"foo/baar.txt"})
 	if err == nil {
 		t.Fatal("expected error for large file, but got nil")
 	}
@@ -202,7 +217,8 @@ func TestCpioExtract_SizeLimit(t *testing.T) {
 }
 
 func TestTarGzExtract(t *testing.T) {
-	extractedFiles, err := tarGzExtract("../../testdata/test.tar.gz", []string{"foo/baar.txt"})
+	a := newTestArchive(t)
+	extractedFiles, err := a.tarGzExtract("test.tar.gz", []string{"foo/baar.txt"})
 	if err != nil {
 		t.Fatalf("tarGzExtract failed: %v", err)
 	}
@@ -222,10 +238,9 @@ func TestTarGzExtract(t *testing.T) {
 }
 
 func TestTarGzExtract_SizeLimit(t *testing.T) {
-	originalSizeLimit := MaxExtractFileSize
-	MaxExtractFileSize = 20
-	defer func() { MaxExtractFileSize = originalSizeLimit }()
-	_, err := tarGzExtract("../../testdata/test.tar.gz", []string{"foo/baar.txt"})
+	a := newTestArchive(t)
+	a.maxSize = 20
+	_, err := a.tarGzExtract("test.tar.gz", []string{"foo/baar.txt"})
 	if err == nil {
 		t.Fatal("expected error for large file, but got nil")
 	}
@@ -235,7 +250,8 @@ func TestTarGzExtract_SizeLimit(t *testing.T) {
 }
 
 func TestTarBz2Extract(t *testing.T) {
-	extractedFiles, err := tarBz2Extract("../../testdata/test.tar.bz2", []string{"foo/baar.txt"})
+	a := newTestArchive(t)
+	extractedFiles, err := a.tarBz2Extract("test.tar.bz2", []string{"foo/baar.txt"})
 	if err != nil {
 		t.Fatalf("tarBz2Extract failed: %v", err)
 	}
@@ -255,10 +271,9 @@ func TestTarBz2Extract(t *testing.T) {
 }
 
 func TestTarBz2Extract_SizeLimit(t *testing.T) {
-	originalSizeLimit := MaxExtractFileSize
-	MaxExtractFileSize = 20
-	defer func() { MaxExtractFileSize = originalSizeLimit }()
-	_, err := tarBz2Extract("../../testdata/test.tar.bz2", []string{"foo/baar.txt"})
+	a := newTestArchive(t)
+	a.maxSize = 20
+	_, err := a.tarBz2Extract("test.tar.bz2", []string{"foo/baar.txt"})
 	if err == nil {
 		t.Fatal("expected error for large file, but got nil")
 	}
@@ -268,7 +283,8 @@ func TestTarBz2Extract_SizeLimit(t *testing.T) {
 }
 
 func TestTarXzExtract(t *testing.T) {
-	extractedFiles, err := tarXzExtract("../../testdata/test.tar.xz", []string{"foo/baar.txt"})
+	a := newTestArchive(t)
+	extractedFiles, err := a.tarXzExtract("test.tar.xz", []string{"foo/baar.txt"})
 	if err != nil {
 		t.Fatalf("tarXzExtract failed: %v", err)
 	}
@@ -288,10 +304,9 @@ func TestTarXzExtract(t *testing.T) {
 }
 
 func TestTarXzExtract_SizeLimit(t *testing.T) {
-	originalSizeLimit := MaxExtractFileSize
-	MaxExtractFileSize = 20
-	defer func() { MaxExtractFileSize = originalSizeLimit }()
-	_, err := tarXzExtract("../../testdata/test.tar.xz", []string{"foo/baar.txt"})
+	a := newTestArchive(t)
+	a.maxSize = 20
+	_, err := a.tarXzExtract("test.tar.xz", []string{"foo/baar.txt"})
 	if err == nil {
 		t.Fatal("expected error for large file, but got nil")
 	}
@@ -301,7 +316,8 @@ func TestTarXzExtract_SizeLimit(t *testing.T) {
 }
 
 func TestZipExtract(t *testing.T) {
-	extractedFiles, err := zipExtract("../../testdata/test.zip", []string{"foo/baar.txt"})
+	a := newTestArchive(t)
+	extractedFiles, err := a.zipExtract("test.zip", []string{"foo/baar.txt"})
 	if err != nil {
 		t.Fatalf("zipExtract failed: %v", err)
 	}
@@ -321,10 +337,9 @@ func TestZipExtract(t *testing.T) {
 }
 
 func TestZipExtract_SizeLimit(t *testing.T) {
-	originalSizeLimit := MaxExtractFileSize
-	MaxExtractFileSize = 20
-	defer func() { MaxExtractFileSize = originalSizeLimit }()
-	_, err := zipExtract("../../testdata/test.zip", []string{"foo/baar.txt"})
+	a := newTestArchive(t)
+	a.maxSize = 20
+	_, err := a.zipExtract("test.zip", []string{"foo/baar.txt"})
 	if err == nil {
 		t.Fatal("expected error for large file, but got nil")
 	}
@@ -334,7 +349,8 @@ func TestZipExtract_SizeLimit(t *testing.T) {
 }
 
 func TestCpioList_Depth(t *testing.T) {
-	files, err := cpioList("../../testdata/test.cpio", 1)
+	a := newTestArchive(t)
+	files, err := a.cpioList("test.cpio", 1)
 	if err != nil {
 		t.Fatalf("cpioList failed: %v", err)
 	}
@@ -362,7 +378,8 @@ func TestCpioList_Depth(t *testing.T) {
 }
 
 func TestTarGzList_Depth(t *testing.T) {
-	files, err := tarGzList("../../testdata/test.tar.gz", 1)
+	a := newTestArchive(t)
+	files, err := a.tarGzList("test.tar.gz", 1)
 	if err != nil {
 		t.Fatalf("tarGzList failed: %v", err)
 	}
@@ -390,7 +407,8 @@ func TestTarGzList_Depth(t *testing.T) {
 }
 
 func TestTarBz2List_Depth(t *testing.T) {
-	files, err := tarBz2List("../../testdata/test.tar.bz2", 1)
+	a := newTestArchive(t)
+	files, err := a.tarBz2List("test.tar.bz2", 1)
 	if err != nil {
 		t.Fatalf("tarBz2List failed: %v", err)
 	}
@@ -418,7 +436,8 @@ func TestTarBz2List_Depth(t *testing.T) {
 }
 
 func TestTarXzList_Depth(t *testing.T) {
-	files, err := tarXzList("../../testdata/test.tar.xz", 1)
+	a := newTestArchive(t)
+	files, err := a.tarXzList("test.tar.xz", 1)
 	if err != nil {
 		t.Fatalf("tarXzList failed: %v", err)
 	}
@@ -446,7 +465,8 @@ func TestTarXzList_Depth(t *testing.T) {
 }
 
 func TestZipList_Depth(t *testing.T) {
-	files, err := zipList("../../testdata/test.zip", 1)
+	a := newTestArchive(t)
+	files, err := a.zipList("test.zip", 1)
 	if err != nil {
 		t.Fatalf("zipList failed: %v", err)
 	}
@@ -470,5 +490,48 @@ func TestZipList_Depth(t *testing.T) {
 		if !found {
 			t.Errorf("expected file '%s' not found in archive", exp)
 		}
+	}
+}
+
+func TestSecurePath(t *testing.T) {
+	a := newTestArchive(t)
+	path, err := a.securePath("test.zip")
+	if err != nil {
+		t.Fatalf("securePath failed: %v", err)
+	}
+	expected, _ := filepath.Abs("../../testdata/test.zip")
+	if path != expected {
+		t.Errorf("expected path %s, got %s", expected, path)
+	}
+}
+
+func TestSecurePath_Traversal(t *testing.T) {
+	a := newTestArchive(t)
+	_, err := a.securePath("../internal/archive/archive.go")
+	if err == nil {
+		t.Fatal("expected error for path traversal, but got nil")
+	}
+	if !strings.Contains(err.Error(), "is outside of the working directory") {
+		t.Fatalf("expected path traversal error, got: %v", err)
+	}
+}
+
+func TestSecurePath_Symlink(t *testing.T) {
+	// Create a symlink from testdata/symlink to ../archive/archive.go
+	// and make sure it is detected.
+	a := newTestArchive(t)
+	symlink := filepath.Join(a.Workdir, "symlink")
+	target := "../internal/archive/archive.go"
+	if err := os.Symlink(target, symlink); err != nil {
+		t.Fatalf("failed to create symlink: %v", err)
+	}
+	defer os.Remove(symlink)
+
+	_, err := a.securePath("symlink")
+	if err == nil {
+		t.Fatal("expected error for symlink traversal, but got nil")
+	}
+	if !strings.Contains(err.Error(), "is outside of the working directory") {
+		t.Fatalf("expected path traversal error, got: %v", err)
 	}
 }
