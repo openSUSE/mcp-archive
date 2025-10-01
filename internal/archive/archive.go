@@ -22,7 +22,8 @@ import (
 
 // ListArchiveFilesArgs are the arguments for the list_archive_files tool.
 type ListArchiveFilesArgs struct {
-	Path string `json:"path" jsonschema:"the path to the archive"`
+	Path  string `json:"path" jsonschema:"the path to the archive"`
+	Depth int    `json:"depth" jsonschema:"the depth of the directory tree to list. 0 means the complete directory tree"`
 }
 
 // ExtractArchiveFilesArgs are the arguments for the extract_archive_files tool.
@@ -44,7 +45,7 @@ var (
 	MaxExtractFileSize int64 = 100 * 1024
 )
 
-func cpioList(path string) ([]string, error) {
+func cpioList(path string, depth int) ([]string, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open archive: %w", err)
@@ -61,12 +62,15 @@ func cpioList(path string) ([]string, error) {
 		if err != nil {
 			return nil, err
 		}
+		if depth > 0 && len(strings.Split(strings.Trim(header.Name, "/"), "/")) > depth {
+			continue
+		}
 		files = append(files, fmt.Sprintf("%s %d %s", header.Name, header.Size, header.Mode))
 	}
 	return files, nil
 }
 
-func tarGzList(path string) ([]string, error) {
+func tarGzList(path string, depth int) ([]string, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open archive: %w", err)
@@ -89,12 +93,15 @@ func tarGzList(path string) ([]string, error) {
 		if err != nil {
 			return nil, err
 		}
+		if depth > 0 && len(strings.Split(strings.Trim(header.Name, "/"), "/")) > depth {
+			continue
+		}
 		files = append(files, fmt.Sprintf("%s %d %s", header.Name, header.Size, os.FileMode(header.Mode).String()))
 	}
 	return files, nil
 }
 
-func tarBz2List(path string) ([]string, error) {
+func tarBz2List(path string, depth int) ([]string, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open archive: %w", err)
@@ -112,12 +119,15 @@ func tarBz2List(path string) ([]string, error) {
 		if err != nil {
 			return nil, err
 		}
+		if depth > 0 && len(strings.Split(strings.Trim(header.Name, "/"), "/")) > depth {
+			continue
+		}
 		files = append(files, fmt.Sprintf("%s %d %s", header.Name, header.Size, os.FileMode(header.Mode).String()))
 	}
 	return files, nil
 }
 
-func tarXzList(path string) ([]string, error) {
+func tarXzList(path string, depth int) ([]string, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open archive: %w", err)
@@ -139,12 +149,15 @@ func tarXzList(path string) ([]string, error) {
 		if err != nil {
 			return nil, err
 		}
+		if depth > 0 && len(strings.Split(strings.Trim(header.Name, "/"), "/")) > depth {
+			continue
+		}
 		files = append(files, fmt.Sprintf("%s %d %s", header.Name, header.Size, os.FileMode(header.Mode).String()))
 	}
 	return files, nil
 }
 
-func zipList(path string) ([]string, error) {
+func zipList(path string, depth int) ([]string, error) {
 	r, err := zip.OpenReader(path)
 	if err != nil {
 		return nil, err
@@ -153,6 +166,9 @@ func zipList(path string) ([]string, error) {
 
 	var files []string
 	for _, f := range r.File {
+		if depth > 0 && len(strings.Split(strings.Trim(f.Name, "/"), "/")) > depth {
+			continue
+		}
 		files = append(files, fmt.Sprintf("%s %d %s", f.Name, f.UncompressedSize64, f.Mode().String()))
 	}
 	return files, nil
@@ -165,15 +181,15 @@ func ListArchiveFiles(ctx context.Context, req *mcp.CallToolRequest, args ListAr
 
 	switch {
 	case strings.HasSuffix(args.Path, ".cpio"):
-		files, err = cpioList(args.Path)
+		files, err = cpioList(args.Path, args.Depth)
 	case strings.HasSuffix(args.Path, ".tar.gz"):
-		files, err = tarGzList(args.Path)
+		files, err = tarGzList(args.Path, args.Depth)
 	case strings.HasSuffix(args.Path, ".tar.bz2"):
-		files, err = tarBz2List(args.Path)
+		files, err = tarBz2List(args.Path, args.Depth)
 	case strings.HasSuffix(args.Path, ".tar.xz"):
-		files, err = tarXzList(args.Path)
+		files, err = tarXzList(args.Path, args.Depth)
 	case strings.HasSuffix(args.Path, ".zip"):
-		files, err = zipList(args.Path)
+		files, err = zipList(args.Path, args.Depth)
 	default:
 		return nil, nil, fmt.Errorf("unsupported archive format for %s", args.Path)
 	}

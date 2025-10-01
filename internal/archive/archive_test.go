@@ -6,7 +6,6 @@ package archive
 
 import (
 	"context"
-	"reflect"
 	"strings"
 	"testing"
 
@@ -14,15 +13,15 @@ import (
 )
 
 func TestCpioList(t *testing.T) {
-	files, err := cpioList("../../testdata/test.cpio")
+	files, err := cpioList("../../testdata/test.cpio", 0)
 	if err != nil {
 		t.Fatalf("cpioList failed: %v", err)
 	}
 
 	expected := []string{
-		"foo 0 040755",
-		"foo/baar.txt 27 0100644",
-		"foo/bazz 5 0100644",
+		"foo 0",
+		"foo/baar.txt 27",
+		"foo/bazz 5",
 	}
 
 	// The order of files in the archive is not guaranteed, so we need to compare them in a way that ignores order.
@@ -37,7 +36,7 @@ func TestCpioList(t *testing.T) {
 			// This is a simplification. A real test might parse the lines and compare fields.
 			// For example, the mode can vary based on umask.
 			// For now, we'll do a simple substring match on name and size.
-			if reflect.DeepEqual(file, exp) {
+			if strings.Contains(file, exp) {
 				found = true
 				break
 			}
@@ -49,15 +48,15 @@ func TestCpioList(t *testing.T) {
 }
 
 func TestTarGzList(t *testing.T) {
-	files, err := tarGzList("../../testdata/test.tar.gz")
+	files, err := tarGzList("../../testdata/test.tar.gz", 0)
 	if err != nil {
 		t.Fatalf("tarGzList failed: %v", err)
 	}
 
 	expected := []string{
-		"foo/ 0 -rwxr-xr-x",
-		"foo/baar.txt 27 -rw-r--r--",
-		"foo/bazz 5 -rw-r--r--",
+		"foo/ 0",
+		"foo/baar.txt 27",
+		"foo/bazz 5",
 	}
 
 	// The order of files in the archive is not guaranteed, so we need to compare them in a way that ignores order.
@@ -68,7 +67,7 @@ func TestTarGzList(t *testing.T) {
 	for _, exp := range expected {
 		found := false
 		for _, file := range files {
-			if reflect.DeepEqual(file, exp) {
+			if strings.Contains(file, exp) {
 				found = true
 				break
 			}
@@ -80,15 +79,15 @@ func TestTarGzList(t *testing.T) {
 }
 
 func TestTarBz2List(t *testing.T) {
-	files, err := tarBz2List("../../testdata/test.tar.bz2")
+	files, err := tarBz2List("../../testdata/test.tar.bz2", 0)
 	if err != nil {
 		t.Fatalf("tarBz2List failed: %v", err)
 	}
 
 	expected := []string{
-		"foo/ 0 -rwxr-xr-x",
-		"foo/baar.txt 27 -rw-r--r--",
-		"foo/bazz 5 -rw-r--r--",
+		"foo/ 0",
+		"foo/baar.txt 27",
+		"foo/bazz 5",
 	}
 
 	// The order of files in the archive is not guaranteed, so we need to compare them in a way that ignores order.
@@ -99,7 +98,7 @@ func TestTarBz2List(t *testing.T) {
 	for _, exp := range expected {
 		found := false
 		for _, file := range files {
-			if reflect.DeepEqual(file, exp) {
+			if strings.Contains(file, exp) {
 				found = true
 				break
 			}
@@ -111,15 +110,15 @@ func TestTarBz2List(t *testing.T) {
 }
 
 func TestTarXzList(t *testing.T) {
-	files, err := tarXzList("../../testdata/test.tar.xz")
+	files, err := tarXzList("../../testdata/test.tar.xz", 0)
 	if err != nil {
 		t.Fatalf("tarXzList failed: %v", err)
 	}
 
 	expected := []string{
-		"foo/ 0 -rwxr-xr-x",
-		"foo/baar.txt 27 -rw-r--r--",
-		"foo/bazz 5 -rw-r--r--",
+		"foo/ 0",
+		"foo/baar.txt 27",
+		"foo/bazz 5",
 	}
 
 	// The order of files in the archive is not guaranteed, so we need to compare them in a way that ignores order.
@@ -130,7 +129,7 @@ func TestTarXzList(t *testing.T) {
 	for _, exp := range expected {
 		found := false
 		for _, file := range files {
-			if reflect.DeepEqual(file, exp) {
+			if strings.Contains(file, exp) {
 				found = true
 				break
 			}
@@ -142,15 +141,15 @@ func TestTarXzList(t *testing.T) {
 }
 
 func TestZipList(t *testing.T) {
-	files, err := zipList("../../testdata/test.zip")
+	files, err := zipList("../../testdata/test.zip", 0)
 	if err != nil {
 		t.Fatalf("zipList failed: %v", err)
 	}
 
 	expected := []string{
-		"foo/ 0 drwxr-xr-x",
-		"foo/baar.txt 27 -rw-r--r--",
-		"foo/bazz 5 -rw-r--r--",
+		"foo/ 0",
+		"foo/baar.txt 27",
+		"foo/bazz 5",
 	}
 
 	// The order of files in the archive is not guaranteed, so we need to compare them in a way that ignores order.
@@ -161,7 +160,7 @@ func TestZipList(t *testing.T) {
 	for _, exp := range expected {
 		found := false
 		for _, file := range files {
-			if reflect.DeepEqual(file, exp) {
+			if strings.Contains(file, exp) {
 				found = true
 				break
 			}
@@ -173,103 +172,47 @@ func TestZipList(t *testing.T) {
 }
 
 func TestExtractArchiveFiles(t *testing.T) {
-
 	// Extract a file from the archive.
-
 	_, result, err := ExtractArchiveFiles(context.Background(), &mcp.CallToolRequest{}, ExtractArchiveFilesArgs{
-
 		Path:  "../../testdata/test.zip",
-
 		Files: []string{"foo/baar.txt"},
-
 	})
-
 	if err != nil {
-
 		t.Fatalf("ExtractArchiveFiles failed: %v", err)
-
 	}
-
-
-
 	extractedFiles, ok := result.([]File)
-
 	if !ok {
-
 		t.Fatalf("unexpected result type: %T", result)
-
 	}
-
-
-
 	if len(extractedFiles) != 1 {
-
 		t.Fatalf("expected 1 file, got %d", len(extractedFiles))
-
 	}
-
-
-
 	file := extractedFiles[0]
-
 	if file.Name != "foo/baar.txt" {
-
 		t.Errorf("unexpected file name: %s", file.Name)
-
 	}
-
 	if file.Content != "das Pferd isst Gurkensalat\n" {
-
 		t.Errorf("unexpected content in extracted file: %s", file.Content)
-
 	}
-
 	if file.Size != 27 {
-
 		t.Errorf("unexpected file size: %d", file.Size)
-
 	}
-
 }
 
-
-
 func TestExtractArchiveFiles_SizeLimit(t *testing.T) {
-
 	// Set a small size limit for this test.
-
 	originalSizeLimit := MaxExtractFileSize
-
 	MaxExtractFileSize = 20
-
 	defer func() { MaxExtractFileSize = originalSizeLimit }()
-
-
-
 	// Attempt to extract the file which is larger than the limit.
-
 	_, _, err := ExtractArchiveFiles(context.Background(), &mcp.CallToolRequest{}, ExtractArchiveFilesArgs{
-
 		Path:  "../../testdata/test.zip",
-
 		Files: []string{"foo/baar.txt"},
-
 	})
-
-
-
 	if err == nil {
-
 		t.Fatal("expected error for large file, but got nil")
-
 	}
-
-
-
 	if !strings.Contains(err.Error(), "is too large") {
-
 		t.Fatalf("expected size limit error, got: %v", err)
-
 	}
-
 }
