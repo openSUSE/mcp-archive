@@ -12,6 +12,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -71,10 +72,10 @@ type File struct {
 }
 
 func (a *Archive) securePath(path string) (string, error) {
-	absPath, err := filepath.Abs(filepath.Join(a.Workdir, path))
-	if err != nil {
-		return "", fmt.Errorf("failed to resolve path: %w", err)
+	if !filepath.IsAbs(path) {
+		return "", fmt.Errorf("path is not an absolute path: %s", path)
 	}
+	absPath := filepath.Clean(path)
 	evalPath, err := filepath.EvalSymlinks(absPath)
 	if err != nil {
 		return "", fmt.Errorf("failed to evaluate symlinks: %w", err)
@@ -265,6 +266,7 @@ type ListArchiveFilesResult struct {
 
 // ListArchiveFiles lists the files in an archive.
 func (a *Archive) ListArchiveFiles(ctx context.Context, req *mcp.CallToolRequest, args ListArchiveFilesArgs) (*mcp.CallToolResult, any, error) {
+	slog.Debug("mcp tool call: ListArchiveFiles", "session", req.Session.ID(), "params", args)
 	var files []FileInfo
 	var err error
 
@@ -576,8 +578,14 @@ func (a *Archive) zipExtract(path string, filesToExtract []string) ([]File, erro
 	return extractedFiles, nil
 }
 
+// ExtractArchiveFilesResult holds the result of the extract_archive_files tool.
+type ExtractArchiveFilesResult struct {
+	Files []File `json:"files"`
+}
+
 // ExtractArchiveFiles extracts files from an archive and returns their content.
 func (a *Archive) ExtractArchiveFiles(ctx context.Context, req *mcp.CallToolRequest, args ExtractArchiveFilesArgs) (*mcp.CallToolResult, any, error) {
+	slog.Debug("mcp tool call: ExtractArchiveFiles", "session", req.Session.ID(), "params", args)
 	var files []File
 	var err error
 
@@ -600,5 +608,5 @@ func (a *Archive) ExtractArchiveFiles(ctx context.Context, req *mcp.CallToolRequ
 		return nil, nil, err
 	}
 
-	return nil, files, nil
+	return nil, ExtractArchiveFilesResult{Files: files}, nil
 }
