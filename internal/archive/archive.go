@@ -14,6 +14,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/cavaliergopher/cpio"
@@ -39,10 +40,20 @@ func New(workdir string) (*Archive, error) {
 	}, nil
 }
 
+// FileInfo represents a file in an archive.
+type FileInfo struct {
+	Name        string `json:"name"`
+	Size        int64  `json:"size"`
+	Permissions string `json:"permissions"`
+}
+
 // ListArchiveFilesArgs are the arguments for the list_archive_files tool.
 type ListArchiveFilesArgs struct {
-	Path  string `json:"path" jsonschema:"the path to the archive"`
-	Depth int    `json:"depth" jsonschema:"the depth of the directory tree to list. 0 means the complete directory tree"`
+	Path           string `json:"path" jsonschema:"the path to the archive"`
+	Depth          int    `json:"depth" jsonschema:"the depth of the directory tree to list. 0 means the complete directory tree"`
+	Limit          int    `json:"limit,omitempty" jsonschema:"the maximum number of files to display. If not set, it will default to 100"`
+	IncludePattern string `json:"include,omitempty" jsonschema:"an optional regular expression to include files"`
+	ExcludePattern string `json:"exclude,omitempty" jsonschema:"an optional regular expression to exclude files"`
 }
 
 // ExtractArchiveFilesArgs are the arguments for the extract_archive_files tool.
@@ -75,7 +86,7 @@ func (a *Archive) securePath(path string) (string, error) {
 	return evalPath, nil
 }
 
-func (a *Archive) cpioList(path string, depth int) ([]string, error) {
+func (a *Archive) cpioList(path string, depth int) ([]FileInfo, error) {
 	securePath, err := a.securePath(path)
 	if err != nil {
 		return nil, err
@@ -87,7 +98,7 @@ func (a *Archive) cpioList(path string, depth int) ([]string, error) {
 	defer file.Close()
 
 	reader := cpio.NewReader(file)
-	var files []string
+	var files []FileInfo
 	for {
 		header, err := reader.Next()
 		if err == io.EOF {
@@ -99,12 +110,16 @@ func (a *Archive) cpioList(path string, depth int) ([]string, error) {
 		if depth > 0 && len(strings.Split(strings.Trim(header.Name, "/"), "/")) > depth {
 			continue
 		}
-		files = append(files, fmt.Sprintf("%s %d %s", header.Name, header.Size, header.Mode))
+		files = append(files, FileInfo{
+			Name:        header.Name,
+			Size:        header.Size,
+			Permissions: header.Mode.String(),
+		})
 	}
 	return files, nil
 }
 
-func (a *Archive) tarGzList(path string, depth int) ([]string, error) {
+func (a *Archive) tarGzList(path string, depth int) ([]FileInfo, error) {
 	securePath, err := a.securePath(path)
 	if err != nil {
 		return nil, err
@@ -122,7 +137,7 @@ func (a *Archive) tarGzList(path string, depth int) ([]string, error) {
 	defer gzr.Close()
 
 	tr := tar.NewReader(gzr)
-	var files []string
+	var files []FileInfo
 	for {
 		header, err := tr.Next()
 		if err == io.EOF {
@@ -134,12 +149,16 @@ func (a *Archive) tarGzList(path string, depth int) ([]string, error) {
 		if depth > 0 && len(strings.Split(strings.Trim(header.Name, "/"), "/")) > depth {
 			continue
 		}
-		files = append(files, fmt.Sprintf("%s %d %s", header.Name, header.Size, os.FileMode(header.Mode).String()))
+		files = append(files, FileInfo{
+			Name:        header.Name,
+			Size:        header.Size,
+			Permissions: os.FileMode(header.Mode).String(),
+		})
 	}
 	return files, nil
 }
 
-func (a *Archive) tarBz2List(path string, depth int) ([]string, error) {
+func (a *Archive) tarBz2List(path string, depth int) ([]FileInfo, error) {
 	securePath, err := a.securePath(path)
 	if err != nil {
 		return nil, err
@@ -152,7 +171,7 @@ func (a *Archive) tarBz2List(path string, depth int) ([]string, error) {
 
 	bz2r := bzip2.NewReader(file)
 	tr := tar.NewReader(bz2r)
-	var files []string
+	var files []FileInfo
 	for {
 		header, err := tr.Next()
 		if err == io.EOF {
@@ -164,12 +183,16 @@ func (a *Archive) tarBz2List(path string, depth int) ([]string, error) {
 		if depth > 0 && len(strings.Split(strings.Trim(header.Name, "/"), "/")) > depth {
 			continue
 		}
-		files = append(files, fmt.Sprintf("%s %d %s", header.Name, header.Size, os.FileMode(header.Mode).String()))
+		files = append(files, FileInfo{
+			Name:        header.Name,
+			Size:        header.Size,
+			Permissions: os.FileMode(header.Mode).String(),
+		})
 	}
 	return files, nil
 }
 
-func (a *Archive) tarXzList(path string, depth int) ([]string, error) {
+func (a *Archive) tarXzList(path string, depth int) ([]FileInfo, error) {
 	securePath, err := a.securePath(path)
 	if err != nil {
 		return nil, err
@@ -186,7 +209,7 @@ func (a *Archive) tarXzList(path string, depth int) ([]string, error) {
 	}
 
 	tr := tar.NewReader(xzr)
-	var files []string
+	var files []FileInfo
 	for {
 		header, err := tr.Next()
 		if err == io.EOF {
@@ -198,12 +221,16 @@ func (a *Archive) tarXzList(path string, depth int) ([]string, error) {
 		if depth > 0 && len(strings.Split(strings.Trim(header.Name, "/"), "/")) > depth {
 			continue
 		}
-		files = append(files, fmt.Sprintf("%s %d %s", header.Name, header.Size, os.FileMode(header.Mode).String()))
+		files = append(files, FileInfo{
+			Name:        header.Name,
+			Size:        header.Size,
+			Permissions: os.FileMode(header.Mode).String(),
+		})
 	}
 	return files, nil
 }
 
-func (a *Archive) zipList(path string, depth int) ([]string, error) {
+func (a *Archive) zipList(path string, depth int) ([]FileInfo, error) {
 	securePath, err := a.securePath(path)
 	if err != nil {
 		return nil, err
@@ -214,19 +241,31 @@ func (a *Archive) zipList(path string, depth int) ([]string, error) {
 	}
 	defer r.Close()
 
-	var files []string
+	var files []FileInfo
 	for _, f := range r.File {
 		if depth > 0 && len(strings.Split(strings.Trim(f.Name, "/"), "/")) > depth {
 			continue
 		}
-		files = append(files, fmt.Sprintf("%s %d %s", f.Name, f.UncompressedSize64, f.Mode().String()))
+		files = append(files, FileInfo{
+			Name:        f.Name,
+			Size:        int64(f.UncompressedSize64),
+			Permissions: f.Mode().String(),
+		})
 	}
 	return files, nil
 }
 
+// ListArchiveFilesResult holds the result of the list_archive_files tool.
+type ListArchiveFilesResult struct {
+	TotalFiles     int        `json:"total_files"`
+	FilteredFiles  int        `json:"filtered_files"`
+	DisplayedFiles int        `json:"displayed_files"`
+	Files          []FileInfo `json:"files"`
+}
+
 // ListArchiveFiles lists the files in an archive.
 func (a *Archive) ListArchiveFiles(ctx context.Context, req *mcp.CallToolRequest, args ListArchiveFilesArgs) (*mcp.CallToolResult, any, error) {
-	var files []string
+	var files []FileInfo
 	var err error
 
 	switch {
@@ -248,11 +287,49 @@ func (a *Archive) ListArchiveFiles(ctx context.Context, req *mcp.CallToolRequest
 		return nil, nil, err
 	}
 
-	return &mcp.CallToolResult{
-		Content: []mcp.Content{
-			&mcp.TextContent{Text: fmt.Sprintf("%v", files)},
-		},
-	}, nil, nil
+	totalFiles := len(files)
+	var filteredFiles []FileInfo
+
+	for _, file := range files {
+		includeMatch := true
+		if args.IncludePattern != "" {
+			includeMatch, err = regexp.MatchString(args.IncludePattern, file.Name)
+			if err != nil {
+				return nil, nil, fmt.Errorf("invalid include pattern: %w", err)
+			}
+		}
+
+		excludeMatch := false
+		if args.ExcludePattern != "" {
+			excludeMatch, err = regexp.MatchString(args.ExcludePattern, file.Name)
+			if err != nil {
+				return nil, nil, fmt.Errorf("invalid exclude pattern: %w", err)
+			}
+		}
+
+		if includeMatch && !excludeMatch {
+			filteredFiles = append(filteredFiles, file)
+		}
+	}
+
+	limit := args.Limit
+	if limit == 0 {
+		limit = 100
+	}
+
+	displayedFilesCount := len(filteredFiles)
+	if displayedFilesCount > limit {
+		displayedFilesCount = limit
+	}
+
+	result := ListArchiveFilesResult{
+		TotalFiles:     totalFiles,
+		FilteredFiles:  len(filteredFiles),
+		DisplayedFiles: displayedFilesCount,
+		Files:          filteredFiles[:displayedFilesCount],
+	}
+
+	return nil, result, nil
 }
 
 func (a *Archive) cpioExtract(path string, filesToExtract []string) ([]File, error) {

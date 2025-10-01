@@ -29,7 +29,7 @@ func main() {
 	// Add the tools from the hello package.
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "list_archive_files",
-		Description: "list the files in a cpio archive",
+		Description: "list the files in an archive",
 	}, archiver.ListArchiveFiles)
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "extract_archive_files",

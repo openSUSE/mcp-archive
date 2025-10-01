@@ -19,6 +19,20 @@ func newTestArchive(t *testing.T) *Archive {
 	return a
 }
 
+type expectedFile struct {
+	name string
+	size int64
+}
+
+func containsFile(files []FileInfo, expected expectedFile) bool {
+	for _, file := range files {
+		if file.Name == expected.name && file.Size == expected.size {
+			return true
+		}
+	}
+	return false
+}
+
 func TestCpioList(t *testing.T) {
 	a := newTestArchive(t)
 	files, err := a.cpioList("test.cpio", 0)
@@ -26,31 +40,19 @@ func TestCpioList(t *testing.T) {
 		t.Fatalf("cpioList failed: %v", err)
 	}
 
-	expected := []string{
-		"foo 0",
-		"foo/baar.txt 27",
-		"foo/bazz 5",
+	expected := []expectedFile{
+		{name: "foo", size: 0},
+		{name: "foo/baar.txt", size: 27},
+		{name: "foo/bazz", size: 5},
 	}
 
-	// The order of files in the archive is not guaranteed, so we need to compare them in a way that ignores order.
-	// For this specific case, the order is deterministic, but this is a good practice.
 	if len(files) != len(expected) {
 		t.Fatalf("expected %d files, got %d", len(expected), len(files))
 	}
 
 	for _, exp := range expected {
-		found := false
-		for _, file := range files {
-			// This is a simplification. A real test might parse the lines and compare fields.
-			// For example, the mode can vary based on umask.
-			// For now, we'll do a simple substring match on name and size.
-			if strings.Contains(file, exp) {
-				found = true
-				break
-			}
-		}
-		if !found {
-			t.Errorf("expected file '%s' not found in archive", exp)
+		if !containsFile(files, exp) {
+			t.Errorf("expected file '%v' not found in archive", exp)
 		}
 	}
 }
@@ -62,27 +64,19 @@ func TestTarGzList(t *testing.T) {
 		t.Fatalf("tarGzList failed: %v", err)
 	}
 
-	expected := []string{
-		"foo/ 0",
-		"foo/baar.txt 27",
-		"foo/bazz 5",
+	expected := []expectedFile{
+		{name: "foo/", size: 0},
+		{name: "foo/baar.txt", size: 27},
+		{name: "foo/bazz", size: 5},
 	}
 
-	// The order of files in the archive is not guaranteed, so we need to compare them in a way that ignores order.
 	if len(files) != len(expected) {
 		t.Fatalf("expected %d files, got %d", len(expected), len(files))
 	}
 
 	for _, exp := range expected {
-		found := false
-		for _, file := range files {
-			if strings.Contains(file, exp) {
-				found = true
-				break
-			}
-		}
-		if !found {
-			t.Errorf("expected file '%s' not found in archive", exp)
+		if !containsFile(files, exp) {
+			t.Errorf("expected file '%v' not found in archive", exp)
 		}
 	}
 }
@@ -94,27 +88,19 @@ func TestTarBz2List(t *testing.T) {
 		t.Fatalf("tarBz2List failed: %v", err)
 	}
 
-	expected := []string{
-		"foo/ 0",
-		"foo/baar.txt 27",
-		"foo/bazz 5",
+	expected := []expectedFile{
+		{name: "foo/", size: 0},
+		{name: "foo/baar.txt", size: 27},
+		{name: "foo/bazz", size: 5},
 	}
 
-	// The order of files in the archive is not guaranteed, so we need to compare them in a way that ignores order.
 	if len(files) != len(expected) {
 		t.Fatalf("expected %d files, got %d", len(expected), len(files))
 	}
 
 	for _, exp := range expected {
-		found := false
-		for _, file := range files {
-			if strings.Contains(file, exp) {
-				found = true
-				break
-			}
-		}
-		if !found {
-			t.Errorf("expected file '%s' not found in archive", exp)
+		if !containsFile(files, exp) {
+			t.Errorf("expected file '%v' not found in archive", exp)
 		}
 	}
 }
@@ -126,27 +112,19 @@ func TestTarXzList(t *testing.T) {
 		t.Fatalf("tarXzList failed: %v", err)
 	}
 
-	expected := []string{
-		"foo/ 0",
-		"foo/baar.txt 27",
-		"foo/bazz 5",
+	expected := []expectedFile{
+		{name: "foo/", size: 0},
+		{name: "foo/baar.txt", size: 27},
+		{name: "foo/bazz", size: 5},
 	}
 
-	// The order of files in the archive is not guaranteed, so we need to compare them in a way that ignores order.
 	if len(files) != len(expected) {
 		t.Fatalf("expected %d files, got %d", len(expected), len(files))
 	}
 
 	for _, exp := range expected {
-		found := false
-		for _, file := range files {
-			if strings.Contains(file, exp) {
-				found = true
-				break
-			}
-		}
-		if !found {
-			t.Errorf("expected file '%s' not found in archive", exp)
+		if !containsFile(files, exp) {
+			t.Errorf("expected file '%v' not found in archive", exp)
 		}
 	}
 }
@@ -158,27 +136,19 @@ func TestZipList(t *testing.T) {
 		t.Fatalf("zipList failed: %v", err)
 	}
 
-	expected := []string{
-		"foo/ 0",
-		"foo/baar.txt 27",
-		"foo/bazz 5",
+	expected := []expectedFile{
+		{name: "foo/", size: 0},
+		{name: "foo/baar.txt", size: 27},
+		{name: "foo/bazz", size: 5},
 	}
 
-	// The order of files in the archive is not guaranteed, so we need to compare them in a way that ignores order.
 	if len(files) != len(expected) {
 		t.Fatalf("expected %d files, got %d", len(expected), len(files))
 	}
 
 	for _, exp := range expected {
-		found := false
-		for _, file := range files {
-			if strings.Contains(file, exp) {
-				found = true
-				break
-			}
-		}
-		if !found {
-			t.Errorf("expected file '%s' not found in archive", exp)
+		if !containsFile(files, exp) {
+			t.Errorf("expected file '%v' not found in archive", exp)
 		}
 	}
 }
@@ -355,8 +325,8 @@ func TestCpioList_Depth(t *testing.T) {
 		t.Fatalf("cpioList failed: %v", err)
 	}
 
-	expected := []string{
-		"foo 0",
+	expected := []expectedFile{
+		{name: "foo", size: 0},
 	}
 
 	if len(files) != len(expected) {
@@ -364,15 +334,8 @@ func TestCpioList_Depth(t *testing.T) {
 	}
 
 	for _, exp := range expected {
-		found := false
-		for _, file := range files {
-			if strings.Contains(file, exp) {
-				found = true
-				break
-			}
-		}
-		if !found {
-			t.Errorf("expected file '%s' not found in archive", exp)
+		if !containsFile(files, exp) {
+			t.Errorf("expected file '%v' not found in archive", exp)
 		}
 	}
 }
@@ -384,8 +347,8 @@ func TestTarGzList_Depth(t *testing.T) {
 		t.Fatalf("tarGzList failed: %v", err)
 	}
 
-	expected := []string{
-		"foo/ 0",
+	expected := []expectedFile{
+		{name: "foo/", size: 0},
 	}
 
 	if len(files) != len(expected) {
@@ -393,15 +356,8 @@ func TestTarGzList_Depth(t *testing.T) {
 	}
 
 	for _, exp := range expected {
-		found := false
-		for _, file := range files {
-			if strings.Contains(file, exp) {
-				found = true
-				break
-			}
-		}
-		if !found {
-			t.Errorf("expected file '%s' not found in archive", exp)
+		if !containsFile(files, exp) {
+			t.Errorf("expected file '%v' not found in archive", exp)
 		}
 	}
 }
@@ -413,8 +369,8 @@ func TestTarBz2List_Depth(t *testing.T) {
 		t.Fatalf("tarBz2List failed: %v", err)
 	}
 
-	expected := []string{
-		"foo/ 0",
+	expected := []expectedFile{
+		{name: "foo/", size: 0},
 	}
 
 	if len(files) != len(expected) {
@@ -422,15 +378,8 @@ func TestTarBz2List_Depth(t *testing.T) {
 	}
 
 	for _, exp := range expected {
-		found := false
-		for _, file := range files {
-			if strings.Contains(file, exp) {
-				found = true
-				break
-			}
-		}
-		if !found {
-			t.Errorf("expected file '%s' not found in archive", exp)
+		if !containsFile(files, exp) {
+			t.Errorf("expected file '%v' not found in archive", exp)
 		}
 	}
 }
@@ -442,8 +391,8 @@ func TestTarXzList_Depth(t *testing.T) {
 		t.Fatalf("tarXzList failed: %v", err)
 	}
 
-	expected := []string{
-		"foo/ 0",
+	expected := []expectedFile{
+		{name: "foo/", size: 0},
 	}
 
 	if len(files) != len(expected) {
@@ -451,15 +400,8 @@ func TestTarXzList_Depth(t *testing.T) {
 	}
 
 	for _, exp := range expected {
-		found := false
-		for _, file := range files {
-			if strings.Contains(file, exp) {
-				found = true
-				break
-			}
-		}
-		if !found {
-			t.Errorf("expected file '%s' not found in archive", exp)
+		if !containsFile(files, exp) {
+			t.Errorf("expected file '%v' not found in archive", exp)
 		}
 	}
 }
@@ -471,8 +413,8 @@ func TestZipList_Depth(t *testing.T) {
 		t.Fatalf("zipList failed: %v", err)
 	}
 
-	expected := []string{
-		"foo/ 0",
+	expected := []expectedFile{
+		{name: "foo/", size: 0},
 	}
 
 	if len(files) != len(expected) {
@@ -480,15 +422,8 @@ func TestZipList_Depth(t *testing.T) {
 	}
 
 	for _, exp := range expected {
-		found := false
-		for _, file := range files {
-			if strings.Contains(file, exp) {
-				found = true
-				break
-			}
-		}
-		if !found {
-			t.Errorf("expected file '%s' not found in archive", exp)
+		if !containsFile(files, exp) {
+			t.Errorf("expected file '%v' not found in archive", exp)
 		}
 	}
 }
