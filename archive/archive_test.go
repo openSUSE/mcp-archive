@@ -12,7 +12,7 @@ import (
 )
 
 func newTestArchive(t *testing.T) *Archive {
-	a, err := New("../../testdata")
+	a, err := New("../testdata")
 	if err != nil {
 		t.Fatalf("failed to create archive: %v", err)
 	}
@@ -434,7 +434,7 @@ func TestSecurePath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("securePath failed: %v", err)
 	}
-	expected, _ := filepath.Abs("../../testdata/test.zip")
+	expected, _ := filepath.Abs("../testdata/test.zip")
 	if path != expected {
 		t.Errorf("expected path %s, got %s", expected, path)
 	}
@@ -442,7 +442,7 @@ func TestSecurePath(t *testing.T) {
 
 func TestSecurePath_Traversal(t *testing.T) {
 	a := newTestArchive(t)
-	_, err := a.securePath("../internal/archive/archive.go")
+	_, err := a.securePath("../archive/archive.go")
 	if err == nil {
 		t.Fatal("expected error for path traversal, but got nil")
 	}
@@ -456,7 +456,7 @@ func TestSecurePath_Symlink(t *testing.T) {
 	// and make sure it is detected.
 	a := newTestArchive(t)
 	symlink := filepath.Join(a.Workdir, "symlink")
-	target := "../internal/archive/archive.go"
+	target := "../archive/archive.go"
 	if err := os.Symlink(target, symlink); err != nil {
 		t.Fatalf("failed to create symlink: %v", err)
 	}

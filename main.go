@@ -8,7 +8,7 @@ import (
 	"os"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
-	"github.com/openSUSE/mcp-archive/internal/archive"
+	"github.com/openSUSE/mcp-archive/archive"
 )
 
 var (
