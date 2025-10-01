@@ -1,18 +1,20 @@
-.PHONY: all clean
+..PHONY: all clean
 
-all: test.cpio
+all: test.cpio test.tar.gz
 
-test.cpio: foo/baar.txt foo/bazz
+test.cpio:
+	mkdir -p foo
+	echo "baar" > foo/baar.txt
+	echo "bazz" > foo/bazz
 	find foo -print | cpio -o -H newc > test.cpio
 	rm -rf foo
 
-foo/baar.txt:
+test.tar.gz:
 	mkdir -p foo
 	echo "baar" > foo/baar.txt
-
-foo/bazz:
-	mkdir -p foo
 	echo "bazz" > foo/bazz
+	tar -czf test.tar.gz foo
+	rm -rf foo
 
 clean:
-	rm -rf foo test.cpio
+	rm -rf foo test.cpio test.tar.gz
